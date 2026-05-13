@@ -15,7 +15,6 @@ import cv2
 import os
 import uuid
 import math
-import numpy as np
 
 app = Flask(__name__)
 
@@ -282,6 +281,8 @@ def predict():
 
     try:
 
+        print("PREDICT ÇALIŞTI")
+
         if "file" not in request.files:
 
             return jsonify({
@@ -318,6 +319,8 @@ def predict():
             iou=YOLO_IOU
         )
 
+        print("YOLO BOX SAYISI:", len(results[0].boxes))
+
         boxes = []
 
         yolo_classes = []
@@ -336,6 +339,8 @@ def predict():
                 cls_id
             ]
 
+            print("CLASS:", cls_name)
+
             boxes.append([
                 x1,
                 y1,
@@ -348,6 +353,8 @@ def predict():
             )
 
         if len(boxes) == 0:
+
+            print("HİÇ BOX BULUNAMADI")
 
             return jsonify({
                 "detections": [],
@@ -488,10 +495,6 @@ def predict():
                 "percentage": percentage
             })
 
-        # =========================
-        # BASE64 GÖRSEL
-        # =========================
-
         success, buffer = cv2.imencode(
             ".jpg",
             image
@@ -506,10 +509,10 @@ def predict():
                 .decode("utf-8")
             )
 
-        # TEMP SİL
-
         if os.path.exists(file_path):
             os.remove(file_path)
+
+        print("DETECTIONS:", detections)
 
         return jsonify({
             "detections": detections,
