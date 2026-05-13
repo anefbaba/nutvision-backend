@@ -81,9 +81,16 @@ cnn_transform = transforms.Compose([
 # AYARLAR
 # =========================
 
-YOLO_CONF = 0.35
-GROUP_DISTANCE_FACTOR = 1.8
+YOLO_CONF = 0.55
+YOLO_IOU = 0.30
+
+GROUP_DISTANCE_FACTOR = 2.2
 MIN_GROUP_SIZE = 2
+
+CROP_PADDING = 40
+
+YOLO_MAJORITY_RATIO = 0.60
+CNN_MIN_CONF = 0.80
 
 # =========================
 # YARDIMCI FONKSİYONLAR
@@ -186,7 +193,7 @@ def find_groups(boxes):
 
     return groups
 
-def crop_group(image, boxes, indexes, padding=15):
+def crop_group(image, boxes, indexes, padding=CROP_PADDING):
 
     h, w = image.shape[:2]
 
@@ -307,7 +314,8 @@ def predict():
 
         results = yolo_model(
             image,
-            conf=YOLO_CONF
+            conf=YOLO_CONF,
+            iou=YOLO_IOU
         )
 
         boxes = []
@@ -370,9 +378,34 @@ def predict():
                     crop
                 )
 
+                group_yolo_classes = [
+                    yolo_classes[i]
+                    for i in group
+                ]
+
+                most_common_class, most_common_count = Counter(
+                    group_yolo_classes
+                ).most_common(1)[0]
+
+                yolo_ratio = (
+                    most_common_count / len(group)
+                )
+
+                if yolo_ratio >= YOLO_MAJORITY_RATIO:
+
+                    final_class = most_common_class
+
+                elif cnn_conf >= CNN_MIN_CONF:
+
+                    final_class = cnn_class
+
+                else:
+
+                    final_class = most_common_class
+
                 adet = len(group)
 
-                final_counts[cnn_class] += adet
+                final_counts[final_class] += adet
 
                 used_indexes.update(group)
 
@@ -388,7 +421,7 @@ def predict():
 
                 cv2.putText(
                     image,
-                    f"{cnn_class} ({adet})",
+                    f"{final_class} ({adet})",
                     (
                         gx1,
                         max(gy1 - 10, 20)
